@@ -1,0 +1,134 @@
+
+Ref - Super-fast, easy to use, lightweight, flexible,
+reference pointer garbage collector in C
+BSD license.
+by Sven Nilsen, 2012
+http://www.cutoutpro.com
+
+Version: 0.000
+in angular degrees versioning notation
+http://isprogrammingeasy.blogspot.no/2012/08/angular-degrees-versioning-notation.html
+
+As a pragmatic programmer, this library is written for _my_ needs, not yours.
+
+________________________________________________________________________________
+REF GARBAGE COLLECTION - DOCUMENTATION
+
+How to use Ref:
+
+// Include header.
+#include "chan.h"
+
+How to make a struct garbage collected:
+
+typedef struct point
+{
+	// Declare this line at the beginning of every struct.
+	ref ref;
+	// If we had pointers to other structs, we would set them here.
+	double x, y;
+} point;
+
+How to use garbage collection in a function:
+
+point *point_add(point *a, point *b) 
+{
+	// Declare variable and initialize it.
+	// 1. point - The type of struct.
+	// 2. c - The variable name.
+	// 3. NULL - Destructor function "void f(void *ptr)" for internal pointers.
+	// 4. Code for initialization, all other data is set to 0.
+	gcInit(point, c, NULL, .x = a->x + b->x, .y = a->y + b->y);
+	// Creates mandatory array for pointers to be collected.
+	gcStart(gcRef(c));
+	// When returning a pointer, use gcReturn.
+	// This will automatically do garbage collection.
+	gcReturn(c);
+}
+
+// Return NULL from a function.
+gcEnd();
+return NULL;
+
+// When there is no return value:
+gcEnd();
+return;
+
+// Use gcSet for assignment.
+gcSet(a, point_add(a, b));
+
+// When you no longer need a pointer.
+gcSet(a, NULL);
+
+// Assigning a local pointer with gcSet is not NOT A GOOD IDEA.
+// Instead use 'gcCopy', which keeps the ref data intact.
+gcCopy(a, &(point){.x = 2, .y = 3});
+
+// When a function returns an unused pointer, 'ignore' it.
+gcIgnore(point_add(a, b));
+
+// Nesting functions without assigning the return value will result in leak,
+// not because the reference counter but because there is no ownership.
+point_add(point_add(a, b), c);
+
+// Create an array of pointer-pointers to be collected.
+// This can only be called once in the same function.
+gcStart(gcRef(a), gcRef(b), gcRef(c), ...)
+
+// Do garbage collection.
+gcEnd();
+
+________________________________________________________________________________
+CHEAT SHEET
+
+In standard C				In Ref
+
+A *a = malloc(sizeof(A));		gcInit(A, a);
+
+free(a);				gcSet(a, NULL);
+
+a = foo();				gcSet(a, foo());
+
+memcpy(a1, a2, sizeof(A));		gcCopy(a1, a2);
+
+if (error)				gcReturn(c); // requires gcStart
+	goto CLEANUP;
+CLEANUP:
+if (a != NULL)
+	free(a);
+if (b != NULL)
+	free(b);
+return c;
+
+________________________________________________________________________________
+4 THINGS TO REMEMBER
+
+1. Add pointers to other structs after "ref ref;".
+	
+	typedef struct person person;
+	struct person {
+		ref ref;
+		person *father;
+		person *mother;
+	};
+	
+2. If we have 2 pointers, we need to set ".ref.members_length = 2" in "gcInit".
+
+	gcInit(person, me, .ref.members_length = 2);
+
+3. If a function returns a pointer and the variable is in "gcStart", then we
+need to use "gcReturn" instead of "gcEnd".
+
+	person *create_new_person(void) {
+		gcStart(gcRef(a), gcRef(b), gcRef(c));
+		...
+		// gcEnd(); return a; WRONG!
+		gcReturn(a); // Correct!
+	}
+
+4. Do not assign using "=", but use "gcSet" instead.
+
+	a->father = find_father("Carl"); // WRONG!
+	gcSet(a->father, find_father("Carl")); // Correct!
+
+
