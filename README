@@ -17,7 +17,7 @@ REF GARBAGE COLLECTION - DOCUMENTATION
 How to use Ref:
 
 // Include header.
-#include "chan.h"
+#include "ref.h"
 
 How to make a struct garbage collected:
 
