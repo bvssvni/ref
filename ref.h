@@ -41,51 +41,38 @@ See README for more information.
 typedef struct ref ref;
 struct ref {
 	unsigned char is_allocated;
-	int keep;
-	int members_length;
+	int keep, members_length;
 };
 
-/*
-This is the only non-macro 
-*/
+// The only non-macro, because it is recursive.
 void gcFreeRef(ref *a);
-
 // Get garbage collected pointer within struct.
-// This code is a bit complicated because it has to calculate correct memory alignment.
+// A bit complicated because it calculates memory alignment.
 #define gcMember(a, ind) ((ref**)((unsigned char*)a+\
 (sizeof(ref)>sizeof(ref*)?sizeof(ref)+sizeof(ref*)-\
 sizeof(ref)%sizeof(ref*):sizeof(ref*))))[ind]
-
 // Just for removing comma at end of variadic arguments.
 #define gcVaArgs(...) __VA_ARGS__
 #define gcInit(type, name, ...) \
 type *name = malloc(sizeof(type)); \
 *name = (type){gcVaArgs(.ref.is_allocated = 1, __VA_ARGS__)};
-
 #define gcIgnore(a) do {\
 ref *macro_val = (ref*)a; \
 if (macro_val != NULL && --macro_val->keep < 0) { \
 	gcFreeRef(macro_val); \
 } } while (0);
-
 #define gcEnd() do { \
 int macro_size = sizeof(refs)/sizeof(ref*); \
-int macro_i; \
-ref *macro_item; \
+int macro_i; ref *macro_item; \
 for (macro_i = 0; macro_i < macro_size; macro_i++) { \
 	macro_item = *refs[macro_i]; \
 	if (macro_item == NULL) continue; \
 	if (--macro_item->keep < 0) { \
-		gcFreeRef(macro_item); \
-		*refs[macro_i] = NULL; \
-	} \
-} \
-} while (0);
-
+		gcFreeRef(macro_item); *refs[macro_i] = NULL; \
+	} } } while (0);
 #define gcReturn(a) \
 if ((a) != NULL && (a)->ref.is_allocated) (a)->ref.keep++; \
-gcEnd(); \
-return a;
+gcEnd(); return a;
 #define gcSet(a, b) do { \
 	if (a == b) break; \
 	if ((a) != NULL && (a)->ref.is_allocated) gcFreeRef((ref*)a); \
@@ -94,22 +81,18 @@ return a;
 } while (0);
 #define gcCopy(a, ...) do { \
 	ref macro_ref = a->ref; \
-	int macro_i; \
-	ref *macro_member; \
+    int macro_i; ref *macro_member; \
 	for (macro_i = 0; macro_i < macro_ref.members_length; macro_i++) { \
 		macro_member = gcMember(a, macro_i); \
 		if (macro_member != NULL && --macro_member->keep < 0) { \
 			gcFreeRef(macro_member); \
-		} \
-	} \
+		} } \
 	*a = *(__VA_ARGS__); \
-	macro_ref.members_length = a->ref.members_length; \
-	a->ref = macro_ref; \
+	macro_ref.members_length = a->ref.members_length; a->ref = macro_ref; \
 	for (macro_i = 0; macro_i < macro_ref.members_length; macro_i++) { \
 		macro_member = gcMember(a, macro_i); \
 		if (macro_member != NULL) macro_member->keep++; \
-	} \
-} while (0);
+	} } while (0);
 #define gcRef(a) (ref**)&a
 #define gcStart(...) ref **refs[] = {__VA_ARGS__}
 

@@ -106,7 +106,7 @@ void test(void) {
 
 int main(void) {
 	int i;
-	int end = 1 << 22;
+	int end = 1 << 20;
 	for (i = 0; i < end; i++) {
 		test();
 	}
