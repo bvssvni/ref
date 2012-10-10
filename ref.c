@@ -1,4 +1,7 @@
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "ref.h"
 
 // Frees the memory of a structure if no more owners, but also the pointers.
