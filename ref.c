@@ -11,9 +11,15 @@ void gcFreeRef(ref *a)
 	int release = (a) != NULL && (a)->is_allocated && --(a)->keep < 0;
 	if (!release) return;
 
+	// Call destructor.
+	if (a->destructor != NULL) {
+		a->destructor(a);
+		a->destructor = NULL;
+	}
+	
 	// In case it points to itself.
 	a->is_allocated = 0;
-
+	
 	int macro_i;
 	ref *macro_ref;
 	for (macro_i = 0; macro_i < (a)->members_length; macro_i++) {

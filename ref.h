@@ -4,9 +4,12 @@ BSD license.
 by Sven Nilsen, 2012
 http://www.cutoutpro.com
 
-Version: 0.000
+Version: 0.001
 Angular degrees version notation
 http://isprogrammingeasy.blogspot.no/2012/08/angular-degrees-versioning-notation.html
+ 
+0.001	Added support for destructor.
+ 
 */
 /*
 Redistribution and use in source and binary forms, with or without
@@ -41,6 +44,7 @@ See README for more information.
 typedef struct ref ref;
 struct ref {
 	unsigned char is_allocated;
+	void (*destructor)(void *ptr);
 	int keep, members_length;
 };
 
@@ -81,6 +85,8 @@ gcEnd(); return a;
 } while (0);
 #define gcCopy(a, ...) do { \
 	ref macro_ref = a->ref; \
+	if (macro_ref.keep == 0 && macro_ref.destructor != NULL) \
+		macro_ref.destructor(a); \
     int macro_i; ref *macro_member; \
 	for (macro_i = 0; macro_i < macro_ref.members_length; macro_i++) { \
 		macro_member = gcMember(a, macro_i); \
