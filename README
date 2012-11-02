@@ -1,4 +1,3 @@
-
 Ref - Super-fast, easy to use, lightweight, flexible,
 reference pointer garbage collector in C
 BSD license.
@@ -112,9 +111,17 @@ ________________________________________________________________________________
 		person *mother;
 	};
 	
-2. If we have 2 pointers, we need to set ".ref.members_length = 2" in "gcInit".
+2. To customize behavior, set values of the ref member.
+   
+    Example 1: If we have 2 pointers, we need to set ".ref.members_length = 2" in "gcInit".
+    Make sure that the pointers are declared immediately after "ref ref;".
 
 	gcInit(person, me, .ref.members_length = 2);
+
+    Example 2: If we need to do custom cleanup, we can set a destructor:
+    The destructor must have signature "void destructor(void *ptr);".
+
+        gcInit(person, me, .ref.destructor = person_Delete);
 
 3. If a function returns a pointer and the variable is in "gcStart", then we
 need to use "gcReturn" instead of "gcEnd".
