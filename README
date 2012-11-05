@@ -77,6 +77,21 @@ gcStart(gcRef(a), gcRef(b), gcRef(c), ...)
 // Do garbage collection.
 gcEnd();
 
+FLEXIBLE STRUCTURES
+
+When the last member of a structure is a dynamic array,
+the structure is called "flexible" because it allocates extra
+memory for the array.
+
+typedef struct {int n, double[] arr} vector;
+
+vector *vector_Up(void)
+{
+	gcInitFlexible(vector, v, double, 3, .n = 3);
+	v->arr[0] = 0; v->arr[1] = 1; v->arr[2] = 0;
+	return v;
+}
+
 ________________________________________________________________________________
 CHEAT SHEET
 

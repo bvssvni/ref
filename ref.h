@@ -4,10 +4,11 @@ BSD license.
 by Sven Nilsen, 2012
 http://www.cutoutpro.com
 
-Version: 0.001
+Version: 0.002
 Angular degrees version notation
 http://isprogrammingeasy.blogspot.no/2012/08/angular-degrees-versioning-notation.html
  
+0.002	Added gcInitFlexible for flexible structures.
 0.001	Added support for destructor.
  
 */
@@ -59,6 +60,10 @@ sizeof(ref)%sizeof(ref*):sizeof(ref*))))[ind]
 #define gcVaArgs(...) __VA_ARGS__
 #define gcInit(type, name, ...) \
 type *name = malloc(sizeof(type)); \
+*name = (type){gcVaArgs(.ref.is_allocated = 1, __VA_ARGS__)};
+// Inits flexible array, but does clear array to 0.
+#define gcInitFlexible(type, name, arrtype, n, ...) \
+type *name = malloc(sizeof(type)+sizeof(arrtype)*n); \
 *name = (type){gcVaArgs(.ref.is_allocated = 1, __VA_ARGS__)};
 #define gcIgnore(a) do {\
 ref *macro_val = (ref*)a; \
