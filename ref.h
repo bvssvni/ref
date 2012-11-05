@@ -61,7 +61,7 @@ sizeof(ref)%sizeof(ref*):sizeof(ref*))))[ind]
 #define gcInit(type, name, ...) \
 type *name = malloc(sizeof(type)); \
 *name = (type){gcVaArgs(.ref.is_allocated = 1, __VA_ARGS__)};
-// Inits flexible array, but does clear array to 0.
+// Inits flexible array, but does not clear array to 0.
 #define gcInitFlexible(type, name, arrtype, n, ...) \
 type *name = malloc(sizeof(type)+sizeof(arrtype)*n); \
 *name = (type){gcVaArgs(.ref.is_allocated = 1, __VA_ARGS__)};
@@ -83,9 +83,10 @@ for (macro_i = 0; macro_i < macro_size; macro_i++) { \
 if ((a) != NULL && (a)->ref.is_allocated) (a)->ref.keep++; \
 gcEnd(); return a;
 #define gcSet(a, b) do { \
-	if (a == b) break; \
+	__typeof__(b) macro_b = (b); \
+	if ((a) == macro_b) break; \
 	if ((a) != NULL && (a)->ref.is_allocated) gcFreeRef((ref*)a); \
-	(a) = (b); \
+	(a) = macro_b; \
 	if ((a) != NULL && (a)->ref.is_allocated) (a)->ref.keep++; \
 } while (0);
 #define gcCopy(a, ...) do { \
