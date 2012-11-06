@@ -22,7 +22,8 @@ How to make a struct garbage collected:
 
 typedef struct point
 {
-	// Declare this line at the beginning of every struct to use reference counting.
+	// Declare this line at the beginning
+	// of every struct to use reference counting.
 	ref ref;
 	// If we had pointers to other structs, we would set them here.
 	double x, y;
@@ -129,7 +130,8 @@ return c;
 ________________________________________________________________________________
 4 THINGS TO REMEMBER
 
-1. Add pointers to other structs after "ref ref;".
+1. Add garbage collected pointers to other structs right after "ref ref;".
+This allows one to set 'ref.members_length = 2' to release members up automatically.
 	
 	typedef struct person person;
 	struct person {
@@ -138,21 +140,13 @@ ________________________________________________________________________________
 		person *mother;
 	};
 	
-2. To customize behavior, set values of the ref member.
-   
-    Example 1: If we have 2 pointers, we need to set ".ref.members_length = 2" in "gcInit".
-    Make sure that the pointers are declared immediately after "ref ref;".
-
-	gcInit(person, me, .ref.members_length = 2);
-
-    Example 2: If we need to do custom cleanup, we can set a destructor:
-    The destructor must have signature "void destructor(void *ptr);".
+2. A destructor got signature "void destructor(void *ptr);".
 
         gcInit(person, me, .ref.destructor = person_Delete);
 
-3. If a function returns a pointer and the variable is in "gcStart", then we
-need to use "gcReturn" instead of "gcEnd".
+3. Use "gcReturn" and "gcEnd" properly.
 
+	// When adding returned value to gcStart.
 	person *create_new_person(void) {
 		gcStart(gcRef(a), gcRef(b), gcRef(c));
 		...
@@ -160,9 +154,16 @@ need to use "gcReturn" instead of "gcEnd".
 		gcReturn(a); // Correct!
 	}
 
-4. Do not assign using "=", but use "gcSet" instead.
+	// When not adding returned value to gcStart.
+	person *create_new_person(void) {
+		gcStart(gcRef(b), gcRef(c));
+		...
+		// gcReturn(a); WRONG!
+		gcEnd(); return a; // Correct!
+	}
 
-	a->father = find_father("Carl"); // WRONG!
-	gcSet(a->father, find_father("Carl")); // Correct!
+4. Do not assign without making sure the destination pointer is NULL.
 
+	gcSet(a->father, NULL);
+	a->father = find_father("Carl");
 
