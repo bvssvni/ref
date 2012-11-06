@@ -2,7 +2,6 @@
 #include <stdlib.h>
 
 #include "ref.h"
-#include "ref.c"
 
 #define err() do {printf("%i Error!\n", __LINE__); exit(1);} while (0);
 
@@ -48,6 +47,7 @@ void test(void) {
 		gcInit(B, b);
 		gcSet(a->b, b);
 		if (b->ref.keep != 1) err();
+		// printf("gcMember %llu\n", (unsigned long long)gcMember(a, 0));
 		if ((B*)gcMember(a, 0) != a->b) err();
 		gcSet(a, NULL);
 		if (b->ref.keep != 0) err();
@@ -102,11 +102,50 @@ void test(void) {
 	{
 		gcIgnore(test_return_pointer());
 	}
+	{
+		A *a = test_return_pointer();
+		gcSet(a, NULL);
+		a = test_return_pointer();
+		gcSet(a, NULL);
+	}
+	{
+		B a = {};
+		gcInit(B, b);
+		gcSet(b, &a);
+		gcSet(b, NULL);
+	}
+	{
+		B a = {};
+		gcInit(B, b);
+		gcStart(gcRef(b));
+		gcSet(b, &a);
+		gcEnd();
+	}
+	{
+		A a = {.ref.members_length = 1};
+		B b = {};
+		a.b = &b;
+		A *c = &(A){};
+		gcCopy(c, &a);
+		if (b.ref.keep != 0) err();
+	}
+	{
+		A a = {.ref.members_length = 1};
+		gcInit(B, b);
+		gcStart(gcRef(b));
+		a.b = b;
+		A *c = &(A){};
+		gcCopy(c, &a);
+		if (b->ref.keep != 1) err();
+		gcSet(c, NULL);
+		if (b->ref.keep != 0) err();
+		gcEnd();
+	}
 }
 
 int main(void) {
 	int i;
-	int end = 1 << 20;
+	int end = 1 << 22;
 	for (i = 0; i < end; i++) {
 		test();
 	}

@@ -4,7 +4,7 @@ BSD license.
 by Sven Nilsen, 2012
 http://www.cutoutpro.com
 
-Version: 0.000
+Version: 0.003
 in angular degrees versioning notation
 http://isprogrammingeasy.blogspot.no/2012/08/angular-degrees-versioning-notation.html
 
@@ -22,7 +22,7 @@ How to make a struct garbage collected:
 
 typedef struct point
 {
-	// Declare this line at the beginning of every struct.
+	// Declare this line at the beginning of every struct to use reference counting.
 	ref ref;
 	// If we had pointers to other structs, we would set them here.
 	double x, y;
@@ -38,8 +38,10 @@ point *point_add(point *a, point *b)
 	// 3. NULL - Destructor function "void f(void *ptr)" for internal pointers.
 	// 4. Code for initialization, all other data is set to 0.
 	gcInit(point, c, NULL, .x = a->x + b->x, .y = a->y + b->y);
+
 	// Creates mandatory array for pointers to be collected.
 	gcStart(gcRef(c));
+
 	// When returning a pointer, use gcReturn.
 	// This will automatically do garbage collection.
 	gcReturn(c);
@@ -53,14 +55,24 @@ return NULL;
 gcEnd();
 return;
 
-// Use gcSet for assignment.
-gcSet(a, point_add(a, b));
-
 // When you no longer need a pointer.
 gcSet(a, NULL);
 
-// Assigning a local pointer with gcSet is not NOT A GOOD IDEA.
-// Instead use 'gcCopy', which keeps the ref data intact.
+// Before calling a function, use gcSet to release pointer.
+gcSet(a, NULL);
+a = point_add(a, b);
+
+// The garbage collector uses ref.is_allocated internally to distinguish
+// between pointers allocated on the heap and pointers on the stack.
+// This makes it possible for a heap pointer to later point to a
+// stack pointer and vice versa.
+point a = {};
+gcInit(point, b);
+gcSet(b, &a);
+gcSet(b, NULL);
+
+// Copying is performed with correct increment of member references,
+// which number is specified by the ref.members_length value.
 gcCopy(a, &(point){.x = 2, .y = 3});
 
 // When a function returns an unused pointer, 'ignore' it.
@@ -75,6 +87,7 @@ point_add(point_add(a, b), c);
 gcStart(gcRef(a), gcRef(b), gcRef(c), ...)
 
 // Do garbage collection.
+// Requires a call to gcStart.
 gcEnd();
 
 FLEXIBLE STRUCTURES
@@ -101,17 +114,16 @@ A *a = malloc(sizeof(A));		gcInit(A, a);
 
 free(a);				gcSet(a, NULL);
 
-a = foo();				gcSet(a, foo());
+a = foo();				gcSet(a, NULL); // release a before assignment.
+					a = foo();
 
 memcpy(a1, a2, sizeof(A));		gcCopy(a1, a2);
 
 if (error)				gcReturn(c); // requires gcStart
 	goto CLEANUP;
 CLEANUP:
-if (a != NULL)
-	free(a);
-if (b != NULL)
-	free(b);
+if (a != NULL) free(a);
+if (b != NULL) free(b);
 return c;
 
 ________________________________________________________________________________

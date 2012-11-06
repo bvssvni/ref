@@ -8,6 +8,7 @@ Version: 0.002
 Angular degrees version notation
 http://isprogrammingeasy.blogspot.no/2012/08/angular-degrees-versioning-notation.html
  
+0.003	Fixed memory alginment issues for struct members.
 0.002	Added gcInitFlexible for flexible structures.
 0.001	Added support for destructor.
  
@@ -51,11 +52,17 @@ struct ref {
 
 // The only non-macro, because it is recursive.
 void gcFreeRef(ref *a);
+// Calculate the member reference alignment in struct.
+/*
+#define gcRefAlignment() (sizeof(ref)>sizeof(ref*) ? \
+sizeof(ref)+sizeof(ref*)-sizeof(ref)%sizeof(ref*) : \
+sizeof(ref*))
+ */
+#define gcRefAlignment() sizeof(ref)
 // Get garbage collected pointer within struct.
 // A bit complicated because it calculates memory alignment.
-#define gcMember(a, ind) ((ref**)((unsigned char*)a+\
-(sizeof(ref)>sizeof(ref*)?sizeof(ref)+sizeof(ref*)-\
-sizeof(ref)%sizeof(ref*):sizeof(ref*))))[ind]
+#define gcMember(a, ind) ((ref**)((unsigned char*)a+gcRefAlignment()))[ind]
+//#define gcMember(a, ind) ((ref**)((ref*)a+1)+ind)
 // Just for removing comma at end of variadic arguments.
 #define gcVaArgs(...) __VA_ARGS__
 #define gcInit(type, name, ...) \
@@ -67,8 +74,7 @@ type *name = malloc(sizeof(type)+sizeof(arrtype)*n); \
 *name = (type){gcVaArgs(.ref.is_allocated = 1, __VA_ARGS__)};
 #define gcIgnore(a) do {\
 ref *macro_val = (ref*)a; \
-if (macro_val != NULL && --macro_val->keep < 0) { \
-	gcFreeRef(macro_val); \
+if (macro_val != NULL) {gcFreeRef(macro_val); \
 } } while (0);
 #define gcEnd() do { \
 int macro_size = sizeof(refs)/sizeof(ref*); \
@@ -85,10 +91,11 @@ gcEnd(); return a;
 #define gcSet(a, b) do { \
 	__typeof__(b) macro_b = (b); \
 	if ((a) == macro_b) break; \
-	if ((a) != NULL && (a)->ref.is_allocated) gcFreeRef((ref*)a); \
+	if ((a) != NULL) gcFreeRef((ref*)a); \
 	(a) = macro_b; \
 	if ((a) != NULL && (a)->ref.is_allocated) (a)->ref.keep++; \
 } while (0);
+// Before copying, release members without releasing itself.
 #define gcCopy(a, ...) do { \
 	ref macro_ref = a->ref; \
 	if (macro_ref.keep == 0 && macro_ref.destructor != NULL) \
@@ -96,14 +103,16 @@ gcEnd(); return a;
     int macro_i; ref *macro_member; \
 	for (macro_i = 0; macro_i < macro_ref.members_length; macro_i++) { \
 		macro_member = gcMember(a, macro_i); \
-		if (macro_member != NULL && --macro_member->keep < 0) { \
+		if (macro_member != NULL && macro_member->is_allocated && \
+			--macro_member->keep < 0) { \
 			gcFreeRef(macro_member); \
 		} } \
 	*a = *(__VA_ARGS__); \
 	macro_ref.members_length = a->ref.members_length; a->ref = macro_ref; \
 	for (macro_i = 0; macro_i < macro_ref.members_length; macro_i++) { \
 		macro_member = gcMember(a, macro_i); \
-		if (macro_member != NULL) macro_member->keep++; \
+		if (macro_member != NULL && macro_member->is_allocated) \
+			macro_member->keep++; \
 	} } while (0);
 #define gcRef(a) (ref**)&a
 #define gcStart(...) ref **refs[] = {__VA_ARGS__}

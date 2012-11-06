@@ -5,10 +5,12 @@
 #include "ref.h"
 
 // Frees the memory of a structure if no more owners, but also the pointers.
-// This has to be a function because it calls itself when having pointers in the struct.
+// If the structure was not allocated on the heap, it releases the members.
+// This has to be a function because it calls itself
+// when having pointers in the struct.
 void gcFreeRef(ref *a)
 {
-	int release = (a) != NULL && (a)->is_allocated && --(a)->keep < 0;
+	int release = (a) != NULL && (!(a)->is_allocated || --(a)->keep < 0);
 	if (!release) return;
 
 	// Call destructor.
@@ -18,6 +20,7 @@ void gcFreeRef(ref *a)
 	}
 	
 	// In case it points to itself.
+	int allocated = a->is_allocated;
 	a->is_allocated = 0;
 	
 	int macro_i;
@@ -28,5 +31,5 @@ void gcFreeRef(ref *a)
 		gcFreeRef(macro_ref);
 	}
 
-	free(a);
+	if (allocated) free(a);
 }
