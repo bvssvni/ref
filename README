@@ -8,7 +8,48 @@ Version: 0.003
 in angular degrees versioning notation
 http://isprogrammingeasy.blogspot.no/2012/08/angular-degrees-versioning-notation.html
 
-As a pragmatic programmer, this library is written for _my_ needs, not yours.
+________________________________________________________________________________
+ABOUT REFERENCE COUNTING
+
+Reference counting is a type of garbage collection where each structure got
+a counter for each pointer address pointing to its location.
+
+1. Each time a pointer address is copied, the counter shall increase.
+2. Each time a pointer address is no longer needed, the counter shall decrease.
+3. An pointer shall be decreased before assigned to another pointer.
+4. A NULL pointer cannot increase or decrease.
+
+The problem is that this is too low abstraction to be very useful.
+For example, copying content from one structure to another is painful.
+
+Ref uses C preprosessor macroes except for the releasing of memory.
+It runs near as fast as without garbage collection.
+
+Ref uses higher abstraction by splitting reference counting into macroes by usage.
+At no point you will have to deal with retaining and releasing.
+It also got an optional array 'refs' configured by gcStart to declare
+which pointers locally in a function that needs to be released on function exit.
+This prevents one common type of bug where the programmer forgets to keep
+track of the pointers and release them.
+
+Ref knows which pointers are allocated on the heap on the stack by using
+the trick of initializing memory to 0 on the stack, for example "point a = {};".
+Stack pointers can refer to heap pointers as their members, but in that case must
+be "released" like a heap pointer with gcSet.
+Because heap memory is expensive to allocate, the uniform treatment of stack
+and heap memory is an important aspect of Ref which allows very fast code.
+
+gcSet(<dst>, <src>)			Set pointer.
+gcSet(<dst>, NULL)			Release pointer.
+gcIgnore(<function call>)		Release result of function.
+gcCopy(<dst>, <src>)			Copy content of struct.
+gcStart(gcRef(a), gcRef(b), ...)	Pointers to be released on gcEnd or gcReturn.
+gcReturn(<src>)				Return pointer from function.
+gcEnd()					Clean up local pointers.
+gcInit(<type>, <name>, ...)		Initialize a heap pointer.
+					... is optional initial settings.
+gcInitFlexible(<type>, <name>, 		Initialize a flexible heap structure.
+<arrtype>, <size>, ...)			... is optional initial settings.
 
 ________________________________________________________________________________
 REF GARBAGE COLLECTION - DOCUMENTATION
